@@ -2,8 +2,9 @@ const { prompt } = require('inquirer')
 const mysql = require('mysql2')
 require('console.table')
 
-// const db = mysql.createConnection('mysql://rootroot@localhost')
 const db = mysql.createConnection('mysql://root:rootroot@localhost/employees_db')
+
+
 
 const addEmployee = () => {
 db.query('SELECT * FROM role', (err,roles) => {
@@ -119,13 +120,50 @@ const addDepartment = () => {
 
 
 const updateEmployeeRole = () => {
-  db.query(`
-    SELECT employee.name FROM employee
-  `, (err, employees) => {
-    employees = employees.map(employee => ({
-      name: `${employee.first_name} ${employee.last_name}`,
-      value: employee.id
+  db.query(`SELECT * FROM role`, (err, roles) => {
+    if (err) { console.log(err) }
+
+    roles = roles.map(role => ({
+      name: role.title,
+      value: role.id
     }))
+
+    db.query(`
+      SELECT * FROM employee`, (err, employees) => {
+      if (err) { console.log(err) }
+
+      employees = employees.map(employee => ({
+        name: `${employee.first_name} ${employee.last_name}`,
+        value: employee.id
+      }))
+
+      prompt([
+        {
+          type: 'list',
+          name: 'employee_id',
+          message: 'Which employee would you like to update?',
+          choices: employees
+        },
+        {
+          type: 'list',
+          name: 'role_id',
+          message: 'Please select a role for employee',
+          choices: roles
+        }
+      ])
+      .then(({ employee_id, role_id }) => {
+        db.query(`
+          UPDATE employee
+          SET role_id = ?
+          WHERE id = ?
+        `, [role_id, employee_id], err => {
+          if (err) { console.log(err) }
+          console.log('Employee role is now updated!')
+          mainMenu()
+        })
+      })
+      .catch(err => { console.log(err) })  
+    })
   })
 }
 
@@ -145,6 +183,7 @@ db.query(`SELECT role.title, role.salary FROM role`, (err, roles) => {
   mainMenu()
 })
 }
+
 const viewEmployees = () => {
   db.query(`
   SELECT employee.id, employee.first_name, employee.last_name,
@@ -164,6 +203,7 @@ const viewEmployees = () => {
   })
   }
 
+  // menu where user controls which function runs 
 const mainMenu = () => {
   prompt([
     {
@@ -199,14 +239,15 @@ const mainMenu = () => {
           name: 'Add A Role',
           value: 'addRole'
         }
-        // ,
-        // {
-        //   name: 'Be Done',
-        //   value: 'done'
-        // }
+        ,
+        {
+          name: 'Be Done',
+          value: 'done'
+        }
       ]
     }
   ])
+  // switch case to run functions based on choice 
     .then(({ choice }) => {
       switch (choice) {
         case 'viewEmployees':
@@ -230,9 +271,12 @@ const mainMenu = () => {
         case 'addRole':
           addRole()
           break
+          case 'done':
+          process.exit()
       }
     })
     .catch(err => console.log(err))
 }
 
+// starts the function 
 mainMenu()
